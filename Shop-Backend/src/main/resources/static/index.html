@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Project - Deadline Build</title>
+    <style>
+        /* CSS STYLING - Makes it look professional quickly */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; }
+        
+        /* Navbar */
+        nav { background-color: #2c3e50; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { margin: 0; font-size: 1.5rem; }
+        .nav-buttons button { margin-left: 10px; padding: 8px 15px; cursor: pointer; border: none; border-radius: 4px; }
+        .btn-login { background-color: #3498db; color: white; }
+        .btn-logout { background-color: #e74c3c; color: white; display: none; }
+
+        /* Main Container */
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+
+        /* Search Bar */
+        .search-box { width: 100%; padding: 15px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+
+        /* Product Grid */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        
+        /* Product Card */
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); overflow: hidden; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); }
+        .card-img { height: 150px; background-color: #bdc3c7; display: flex; align-items: center; justify-content: center; color: #7f8c8d; }
+        .card-body { padding: 15px; }
+        .card-title { font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+        .card-price { color: #27ae60; font-weight: bold; font-size: 1.2rem; }
+        .card-desc { color: #666; font-size: 0.9rem; margin-bottom: 15px; height: 40px; overflow: hidden; }
+        .btn-buy { width: 100%; padding: 10px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-buy:hover { background-color: #27ae60; }
+
+        /* Login Modal */
+        #loginModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 300px; }
+        .modal-content input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .close-modal { float: right; cursor: pointer; font-size: 20px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h1>🛍️ Group Project Shop</h1>
+    <div class="nav-buttons">
+        <button id="loginBtn" class="btn-login" onclick="openLogin()">Login</button>
+        <button id="logoutBtn" class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="container">
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search products..." onkeyup="filterProducts()">
+    
+    <div id="productGrid" class="grid">
+        <p>Loading products...</p>
+    </div>
+</div>
+
+<div id="loginModal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeLogin()">&times;</span>
+        <h2>Login</h2>
+        <input type="text" id="email" placeholder="Email (e.g., admin@test.com)">
+        <input type="password" id="password" placeholder="Password">
+        <button class="btn-login" style="width:100%" onclick="login()">Sign In</button>
+        <p id="loginError" style="color:red; display:none; margin-top:10px;"></p>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:8081/api';
+    let allProducts = [];
+    let token = localStorage.getItem('token');
+
+    // 1. Initialize
+    window.onload = () => {
+        checkLoginStatus();
+        fetchProducts();
+    };
+
+    // 2. Fetch Products from Backend
+    async function fetchProducts() {
+        try {
+            const response = await fetch(`${API_URL}/products`);
+            if (!response.ok) throw new Error("Failed to fetch");
+            
+            const data = await response.json();
+            
+            // Handle Pagination (Spring Boot returns 'content' for pages)
+            allProducts = data.content ? data.content : data;
+            
+            renderProducts(allProducts);
+        } catch (error) {
+            console.error(error);
+            document.getElementById('productGrid').innerHTML = `<p style="color:red">Error loading products. Is the Backend running?</p>`;
+        }
+    }
+
+    // 3. Render Logic
+    function renderProducts(products) {
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = '';
+        
+        if (products.length === 0) {
+            grid.innerHTML = '<p>No products found.</p>';
+            return;
+        }
+
+        products.forEach(p => {
+            const card = `
+                <div class="card">
+                    <div class="card-img">Image Placeholder</div>
+                    <div class="card-body">
+                        <div class="card-title">${p.name}</div>
+                        <div class="card-desc">${p.description || 'No description'}</div>
+                        <div class="card-price">$${p.price}</div>
+                        <button class="btn-buy" onclick="buyItem(${p.id})">Buy Now</button>
+                    </div>
+                </div>
+            `;
+            grid.innerHTML += card;
+        });
+    }
+
+    // 4. Search Implementation
+    function filterProducts() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allProducts.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            (p.description && p.description.toLowerCase().includes(query))
+        );
+        renderProducts(filtered);
+    }
+
+    // 5. Auth Logic
+    function checkLoginStatus() {
+        if (token) {
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'inline-block';
+        } else {
+            document.getElementById('loginBtn').style.display = 'inline-block';
+            document.getElementById('logoutBtn').style.display = 'none';
+        }
+    }
+
+    async function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                token = data.token; // Adjust based on your Auth response
+                localStorage.setItem('token', token);
+                closeLogin();
+                checkLoginStatus();
+                alert("Login Successful!");
+            } else {
+                document.getElementById('loginError').innerText = "Invalid credentials";
+                document.getElementById('loginError').style.display = 'block';
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Login Error");
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        token = null;
+        checkLoginStatus();
+    }
+
+    function buyItem(id) {
+        if (!token) {
+            openLogin();
+            return;
+        }
+        alert("Buying functionality coming soon! (ID: " + id + ")");
+    }
+
+    // Modal Helpers
+    function openLogin() { document.getElementById('loginModal').style.display = 'flex'; }
+    function closeLogin() { document.getElementById('loginModal').style.display = 'none'; }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+services:
+  # Database: PostgreSQL
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: shop-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ecommerce_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Cache & Rate Limiting: Redis
+  redis-cache:
+    image: redis:7-alpine
+    container_name: shop-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
